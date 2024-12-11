@@ -1,0 +1,50 @@
+name: "Failing Workflow"
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
+      - name: Set CLI Config
+        run: jf pip-config --global=true --repo-resolve=general-pypi
+      - name: Download package
+        run: |
+          pip download --dest dist -r requirements-fail.txt
+      - name: Publish
+        run: jf rt upload dist/ general-pypi/
+  install:
+    runs-on: ubuntu-latest
+    needs: [publish]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
+      - name: Set CLI Config
+        run: jf pip-config --global=true --repo-resolve=general-pypi
+      - name: Install packages
+        run: |
+          jf pip install -r requirements-fail.txt
+          jf pip install -r requirements-fail.txt
+      - name: Run JFrog CLI
+        run: |
+          # Ping the server
+          jf rt ping
+          # Collect environment variables for the build
+          jf rt bce
+          # Collect VCS details from git and add them to the build
+          jf rt bag
+          # Publish build info
+          jf rt bp
